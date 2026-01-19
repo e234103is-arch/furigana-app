@@ -7,31 +7,24 @@ const ctx = canvas.getContext("2d");
 
 const startBtn = document.getElementById("start");
 const captureBtn = document.getElementById("captureBtn");
-
-// （Base64確認用：textareaがある場合）
-const output = document.getElementById("output");
+const resultDiv = document.getElementById("result");
 
 // =======================
-// カメラ起動（外カメラ）
+// カメラ起動
 // =======================
 startBtn.onclick = async () => {
   try {
-    // 既存ストリーム停止
     if (currentStream) {
       currentStream.getTracks().forEach(track => track.stop());
     }
 
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: "environment" }
-      },
+      video: { facingMode: { ideal: "environment" } },
       audio: false
     });
 
     currentStream = stream;
     video.srcObject = stream;
-
-    // iOS Safari 対策：明示的に再生
     await video.play();
 
   } catch (e) {
@@ -41,47 +34,66 @@ startBtn.onclick = async () => {
 };
 
 // =======================
-// 撮影処理
+// 撮影 → OCR
 // =======================
-captureBtn.onclick = () => {
+captureBtn.onclick = async () => {
   if (!currentStream) {
     alert("先にカメラを起動してください");
     return;
   }
 
-  // iOS対策：映像準備チェック
   if (video.readyState < 2) {
-    alert("カメラ準備中です。もう一度押してください");
+    alert("カメラ準備中です");
     return;
   }
 
-  // canvas に描画
+  // 撮影
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(video, 0, 0);
 
-  canvas.style.display = "block";
+  // Base64
+  const imageBase64 = canvas
+    .toDataURL("image/jpeg", 0.9)
+    .replace(/^data:image\/jpeg;base64,/, "");
 
-  // =======================
-  // Base64 取得（OCR用）
-  // =======================
-  const imageBase64 = canvas.toDataURL("image/jpeg", 0.9);
+  resultDiv.textContent = "文字認識中...";
 
-  console.log("撮影画像(Base64):", imageBase64);
+  // OCR.space API
+  try {
+    const response = await fetch("https://api.ocr.space/parse/image", {
+      method: "POST",
+      headers: {
+        "apikey": "YOUR_API_KEY_HERE",
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: new URLSearchParams({
+        base64Image: "data:image/jpeg;base64," + imageBase64,
+        language: "jpn"
+      })
+    });
 
-  // 画面確認用（textareaがある場合）
-  if (output) {
-    output.value = imageBase64;
+    const data = await response.json();
+
+    if (data.ParsedResults && data.ParsedResults.length > 0) {
+      const text = data.ParsedResults[0].ParsedText;
+      resultDiv.textContent = text || "文字を認識できませんでした";
+    } else {
+      resultDiv.textContent = "OCR失敗";
+    }
+
+  } catch (e) {
+    console.error(e);
+    resultDiv.textContent = "OCRエラー";
   }
 
-  // =======================
-  // 撮影フラッシュ演出
-  // =======================
+  // フラッシュ演出
   document.body.style.background = "#fff";
   setTimeout(() => {
     document.body.style.background = "#000";
   }, 100);
 };
+
 
 
 
