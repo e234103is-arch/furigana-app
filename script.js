@@ -1,53 +1,45 @@
-let currentStream = null;
+// ★ ここにあなたのAPIキーを入れる
+const API_KEY = AIzaSyBLgzDs6aoOLXc8CEz0SCxs-2OQmoLogFk;
 
-// 要素取得
 const video = document.getElementById("camera");
+const startBtn = document.getElementById("start");
+const captureBtn = document.getElementById("capture");
 const canvas = document.getElementById("canvas");
+const status = document.getElementById("status");
+const result = document.getElementById("result");
+
+let currentStream = null;
 const ctx = canvas.getContext("2d");
 
-const startBtn = document.getElementById("start");
-const captureBtn = document.getElementById("captureBtn");
-const resultDiv = document.getElementById("result");
-
-// =======================
-// カメラ起動
-// =======================
+// カメラ起動（外カメラ）
 startBtn.onclick = async () => {
   try {
     if (currentStream) {
-      currentStream.getTracks().forEach(t => t.stop());
+      currentStream.getTracks().forEach(track => track.stop());
     }
 
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" } },
-      audio: false
+      video: { facingMode: { ideal: "environment" } }
     });
 
     currentStream = stream;
     video.srcObject = stream;
-    await video.play();
 
   } catch (e) {
-    alert("カメラ起動失敗");
+    alert("カメラを起動できません");
     console.error(e);
   }
 };
 
-// =======================
 // 撮影 → OCR
-// =======================
 captureBtn.onclick = async () => {
-
-  // 動作確認用
-  resultDiv.textContent = "📸 撮影しました。OCR準備中...";
-
   if (!currentStream) {
-    resultDiv.textContent = "❌ カメラが起動していません";
+    alert("先にカメラを起動してください");
     return;
   }
 
-  if (video.readyState < 2) {
-    resultDiv.textContent = "⏳ カメラ準備中です";
+  if (video.videoWidth === 0) {
+    alert("カメラ準備中です。少し待ってください");
     return;
   }
 
@@ -56,47 +48,45 @@ captureBtn.onclick = async () => {
   canvas.height = video.videoHeight;
   ctx.drawImage(video, 0, 0);
 
-  // Base64化
-  const imageBase64 = canvas
-    .toDataURL("image/jpeg", 0.9)
-    .replace(/^data:image\/jpeg;base64,/, "");
+  status.textContent = "文字認識中…";
+  result.textContent = "";
 
-  // OCR開始表示
-  resultDiv.textContent = "⏳ 文字認識中...";
+  const base64 = canvas.toDataURL("image/jpeg").split(",")[1];
 
   try {
-    const res = await fetch("https://api.ocr.space/parse/image", {
-      method: "POST",
-      headers: {
-        "apikey": "ここにあなたのAPIキー",
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: new URLSearchParams({
-        base64Image: "data:image/jpeg;base64," + imageBase64,
-        language: "jpn"
-      })
-    });
+    const res = await fetch(
+      `https://vision.googleapis.com/v1/images:annotate?key=${API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requests: [
+            {
+              image: { content: base64 },
+              features: [{ type: "TEXT_DETECTION" }],
+              imageContext: { languageHints: ["ja"] }
+            }
+          ]
+        })
+      }
+    );
 
     const data = await res.json();
-    console.log(data);
 
-    if (data.ParsedResults && data.ParsedResults.length > 0) {
-      resultDiv.textContent =
-        data.ParsedResults[0].ParsedText || "文字が検出されませんでした";
-    } else {
-      resultDiv.textContent = "❌ OCR失敗";
+    const text = data.responses?.[0]?.fullTextAnnotation?.text;
+
+    if (!text) {
+      status.textContent = "文字を認識できませんでした";
+      return;
     }
 
-  } catch (e) {
-    console.error(e);
-    resultDiv.textContent = "❌ OCR通信エラー";
-  }
+    status.textContent = "認識完了";
+    result.textContent = text;
 
-  // フラッシュ
-  document.body.style.background = "#fff";
-  setTimeout(() => {
-    document.body.style.background = "#000";
-  }, 100);
+  } catch (e) {
+    status.textContent = "OCR失敗";
+    console.error(e);
+  }
 };
 
 
