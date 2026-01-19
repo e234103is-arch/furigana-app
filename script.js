@@ -8,22 +8,28 @@ const canvas = document.getElementById("canvas");
 const status = document.getElementById("status");
 const result = document.getElementById("result");
 
-let currentStream = null;
 const ctx = canvas.getContext("2d");
+let currentStream = null;
 
-// カメラ起動（外カメラ）
+// カメラ起動（iOS Safari対策済）
 startBtn.onclick = async () => {
   try {
     if (currentStream) {
-      currentStream.getTracks().forEach(track => track.stop());
+      currentStream.getTracks().forEach(t => t.stop());
     }
 
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" } }
+      video: { facingMode: { ideal: "environment" } },
+      audio: false
     });
 
     currentStream = stream;
     video.srcObject = stream;
+
+    // ★ 重要：iOSでは明示的に再生
+    await video.play();
+
+    status.textContent = "カメラ起動完了";
 
   } catch (e) {
     alert("カメラを起動できません");
@@ -38,7 +44,8 @@ captureBtn.onclick = async () => {
     return;
   }
 
-  if (video.videoWidth === 0) {
+  // 再生状態チェック（iOS対策）
+  if (video.readyState < 2) {
     alert("カメラ準備中です。少し待ってください");
     return;
   }
@@ -46,11 +53,12 @@ captureBtn.onclick = async () => {
   // 撮影
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
-  ctx.drawImage(video, 0, 0);
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
   status.textContent = "文字認識中…";
   result.textContent = "";
 
+  // Base64化
   const base64 = canvas.toDataURL("image/jpeg").split(",")[1];
 
   try {
@@ -72,7 +80,6 @@ captureBtn.onclick = async () => {
     );
 
     const data = await res.json();
-
     const text = data.responses?.[0]?.fullTextAnnotation?.text;
 
     if (!text) {
@@ -88,6 +95,7 @@ captureBtn.onclick = async () => {
     console.error(e);
   }
 };
+
 
 
 
