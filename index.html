@@ -1,26 +1,37 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ふりがなOCR</title>
+  <link rel="stylesheet" href="style.css">
+</head>
 <body>
 
-<button id="start">カメラ起動</button>
-<br><br>
-<video id="camera" autoplay playsinline></video>
+  <h1>ふりがなOCR</h1>
 
-<script>
-const video = document.getElementById("camera");
-document.getElementById("start").onclick = async () => {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    video.srcObject = stream;
-    await video.play();
-  } catch (e) {
-    alert(e.name);
-  }
-};
-</script>
+  <video
+    id="camera"
+    autoplay
+    playsinline
+    muted
+  ></video>
 
+  <div class="buttons">
+    <button id="start">カメラ起動</button>
+    <button id="capture">撮影</button>
+  </div>
+
+  <p id="status"></p>
+
+  <pre id="result"></pre>
+
+  <canvas id="canvas"></canvas>
+
+  <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
