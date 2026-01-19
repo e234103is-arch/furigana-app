@@ -1,21 +1,27 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Furigana Camera</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ふりがなアプリ（OCR）</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <video id="camera" autoplay playsinline muted></video>
+  <h1>ふりがなアプリ</h1>
+
+  <video id="camera" autoplay playsinline></video>
+
+  <div class="buttons">
+    <button id="start">カメラ起動</button>
+    <button id="capture">撮影</button>
+  </div>
+
+  <p id="status"></p>
+
+  <pre id="result"></pre>
+
   <canvas id="canvas"></canvas>
-
-  <button id="start">カメラ起動</button>
-  <button id="captureBtn" class="shutter-btn"></button>
-
-  <!-- OCR結果表示 -->
-  <div id="result">ここに認識結果が表示されます</div>
 
   <script src="script.js"></script>
 </body>
