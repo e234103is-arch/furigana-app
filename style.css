@@ -1,0 +1,49 @@
+/* 全体 */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+               "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+  text-align: center;
+  margin: 0;
+  padding: 16px;
+  background-color: #f9f9f9;
+}
+
+/* 見出し */
+h1 {
+  font-size: 20px;
+  margin-bottom: 16px;
+}
+
+/* カメラ映像 */
+video {
+  width: 100%;
+  max-width: 360px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+/* ボタン共通 */
+button {
+  margin-top: 12px;
+  padding: 10px 16px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: none;
+  background-color: #007aff; /* iOSっぽい青 */
+  color: white;
+}
+
+button:active {
+  opacity: 0.7;
+}
+
+/* 撮影結果（canvas） */
+canvas {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  margin: 16px auto 0;
+  border: 2px solid red; /* 今は確認用 */
+  border-radius: 8px;
+  background-color: #fff;
+}
