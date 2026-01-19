@@ -3,9 +3,15 @@ const button = document.getElementById("start");
 
 button.onclick = async () => {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { exact: "environment" }
+      }
+    });
     video.srcObject = stream;
   } catch (e) {
-    alert("カメラを起動できません");
+    alert("外カメラを起動できません");
+    console.error(e);
   }
 };
+
