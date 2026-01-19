@@ -30,6 +30,11 @@ captureBtn.onclick = () => {
     return;
   }
 
+  if (video.videoWidth === 0) {
+    alert("カメラ準備中です。少し待ってから撮影してください");
+    return;
+  }
+
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
 
