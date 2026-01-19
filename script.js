@@ -1,50 +1,38 @@
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const startBtn = document.getElementById("startBtn");
+const captureBtn = document.getElementById("captureBtn");
+
 let currentStream = null;
 
-document.addEventListener("DOMContentLoaded", () => {
-  alert("JS起動確認"); // ← 必ず出るか確認
+startBtn.onclick = async () => {
+  try {
+    currentStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" }
+    });
+    video.srcObject = currentStream;
+  } catch (e) {
+    alert("カメラ起動失敗");
+    console.error(e);
+  }
+};
 
-  const video = document.getElementById("camera");
-  const startBtn = document.getElementById("start");
-  const captureBtn = document.getElementById("capture");
-  const canvas = document.getElementById("canvas");
-  const ctx = canvas.getContext("2d");
+captureBtn.onclick = () => {
+  if (!currentStream) {
+    alert("先にカメラを起動してください");
+    return;
+  }
 
-  startBtn.onclick = async () => {
-    try {
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-      }
+  if (video.videoWidth === 0) {
+    alert("カメラ準備中です");
+    return;
+  }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } }
-      });
-
-      currentStream = stream;
-      video.srcObject = stream;
-    } catch (e) {
-      alert("カメラを起動できません");
-      console.error(e);
-    }
-  };
-
-  captureBtn.onclick = () => {
-    alert("撮影ボタン反応"); // ← これが出るか重要
-
-    if (!currentStream) {
-      alert("先にカメラを起動してください");
-      return;
-    }
-
-    if (video.videoWidth === 0) {
-      alert("カメラ準備中です。少し待ってから撮影してください");
-      return;
-    }
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  };
-});
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  ctx.drawImage(video, 0, 0);
+};
 
 
 
