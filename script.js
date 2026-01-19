@@ -1,23 +1,32 @@
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-const startBtn = document.getElementById("startBtn");
-const captureBtn = document.getElementById("captureBtn");
-
 let currentStream = null;
 
+const video = document.getElementById("camera");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+const startBtn = document.getElementById("start");
+const captureBtn = document.getElementById("captureBtn");
+
+// カメラ起動（外カメラ）
 startBtn.onclick = async () => {
   try {
-    currentStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" }
+    if (currentStream) {
+      currentStream.getTracks().forEach(track => track.stop());
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } }
     });
-    video.srcObject = currentStream;
+
+    currentStream = stream;
+    video.srcObject = stream;
   } catch (e) {
-    alert("カメラ起動失敗");
+    alert("カメラを起動できません");
     console.error(e);
   }
 };
 
+// 撮影
 captureBtn.onclick = () => {
   if (!currentStream) {
     alert("先にカメラを起動してください");
@@ -25,13 +34,22 @@ captureBtn.onclick = () => {
   }
 
   if (video.videoWidth === 0) {
-    alert("カメラ準備中です");
+    alert("カメラ準備中です。少し待ってください");
     return;
   }
 
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   ctx.drawImage(video, 0, 0);
+
+  // 撮影フラッシュ演出
+  document.body.style.background = "#fff";
+  setTimeout(() => {
+    document.body.style.background = "#000";
+  }, 100);
+
+  // デバッグ用表示
+  canvas.style.display = "block";
 };
 
 
