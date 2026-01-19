@@ -15,7 +15,7 @@ const resultDiv = document.getElementById("result");
 startBtn.onclick = async () => {
   try {
     if (currentStream) {
-      currentStream.getTracks().forEach(track => track.stop());
+      currentStream.getTracks().forEach(t => t.stop());
     }
 
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -28,7 +28,7 @@ startBtn.onclick = async () => {
     await video.play();
 
   } catch (e) {
-    alert("カメラを起動できません");
+    alert("カメラ起動失敗");
     console.error(e);
   }
 };
@@ -37,13 +37,17 @@ startBtn.onclick = async () => {
 // 撮影 → OCR
 // =======================
 captureBtn.onclick = async () => {
+
+  // 動作確認用
+  resultDiv.textContent = "📸 撮影しました。OCR準備中...";
+
   if (!currentStream) {
-    alert("先にカメラを起動してください");
+    resultDiv.textContent = "❌ カメラが起動していません";
     return;
   }
 
   if (video.readyState < 2) {
-    alert("カメラ準備中です");
+    resultDiv.textContent = "⏳ カメラ準備中です";
     return;
   }
 
@@ -52,19 +56,19 @@ captureBtn.onclick = async () => {
   canvas.height = video.videoHeight;
   ctx.drawImage(video, 0, 0);
 
-  // Base64
+  // Base64化
   const imageBase64 = canvas
     .toDataURL("image/jpeg", 0.9)
     .replace(/^data:image\/jpeg;base64,/, "");
 
-  resultDiv.textContent = "文字認識中...";
+  // OCR開始表示
+  resultDiv.textContent = "⏳ 文字認識中...";
 
-  // OCR.space API
   try {
-    const response = await fetch("https://api.ocr.space/parse/image", {
+    const res = await fetch("https://api.ocr.space/parse/image", {
       method: "POST",
       headers: {
-        "apikey": "YOUR_API_KEY_HERE",
+        "apikey": "ここにあなたのAPIキー",
         "Content-Type": "application/x-www-form-urlencoded"
       },
       body: new URLSearchParams({
@@ -73,26 +77,28 @@ captureBtn.onclick = async () => {
       })
     });
 
-    const data = await response.json();
+    const data = await res.json();
+    console.log(data);
 
     if (data.ParsedResults && data.ParsedResults.length > 0) {
-      const text = data.ParsedResults[0].ParsedText;
-      resultDiv.textContent = text || "文字を認識できませんでした";
+      resultDiv.textContent =
+        data.ParsedResults[0].ParsedText || "文字が検出されませんでした";
     } else {
-      resultDiv.textContent = "OCR失敗";
+      resultDiv.textContent = "❌ OCR失敗";
     }
 
   } catch (e) {
     console.error(e);
-    resultDiv.textContent = "OCRエラー";
+    resultDiv.textContent = "❌ OCR通信エラー";
   }
 
-  // フラッシュ演出
+  // フラッシュ
   document.body.style.background = "#fff";
   setTimeout(() => {
     document.body.style.background = "#000";
   }, 100);
 };
+
 
 
 
