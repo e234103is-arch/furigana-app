@@ -1,3 +1,20 @@
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const startBtn = document.getElementById("start");
+const captureBtn = document.getElementById("capture");
+const output = document.getElementById("output");
+
+let stream = null;
+
+startBtn.addEventListener("click", async () => {
+  output.textContent = "カメラ起動中…";
+
+  // 以前のストリームがあれば停止
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    stream = null;
+  }
+
 try {
   const res = await fetch(
     "https://vision-proxy-ddd6.vercel.app/api/ocr",
