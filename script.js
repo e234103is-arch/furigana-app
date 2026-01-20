@@ -41,7 +41,7 @@ captureBtn.addEventListener("click", async () => {
 
   try {
     const res = await fetch(
-      "https://vision-proxy-xxxx.vercel.app/api/ocr",
+      "https://vision-proxy-ddd6.vercel.app/api/ocr",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
