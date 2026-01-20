@@ -3,14 +3,19 @@ const canvas = document.getElementById("canvas");
 const button = document.getElementById("capture");
 const output = document.getElementById("output");
 
-// カメラ起動
-navigator.mediaDevices.getUserMedia({ video: true })
-  .then(stream => {
-    video.srcObject = stream;
-  })
-  .catch(err => {
-    console.error("カメラ起動失敗", err);
-  });
+// カメラ起動（外側カメラ）
+navigator.mediaDevices.getUserMedia({
+  video: {
+    facingMode: "environment"
+  }
+})
+.then(stream => {
+  video.srcObject = stream;
+})
+.catch(err => {
+  console.error("カメラ起動失敗", err);
+  output.textContent = "カメラを起動できません";
+});
 
 button.addEventListener("click", async () => {
   canvas.width = video.videoWidth;
@@ -22,24 +27,19 @@ button.addEventListener("click", async () => {
     .toDataURL("image/jpeg")
     .replace(/^data:image\/jpeg;base64,/, "");
 
-  output.textContent = "OCR中…";
-
   try {
     const res = await fetch(
-      "https://vision-proxy-ddd6.vercel.app/api/ocr", // ★ここを書き換える
+      "https://vision-proxy-ddd6.vercel.app/api/ocr",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          image: base64Image
-        })
+        body: JSON.stringify({ image: base64Image })
       }
     );
 
     const data = await res.json();
-    console.log("OCR result:", data);
 
     if (
       data.responses &&
