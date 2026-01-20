@@ -5,53 +5,58 @@ const result = document.getElementById("result");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-let isVideoReady = false;
+let stream = null;
 
 // カメラ起動
 startBtn.onclick = async () => {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" } }
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" }
     });
 
     video.srcObject = stream;
-    video.setAttribute("playsinline", true); // iOS必須
+    video.setAttribute("playsinline", true);
     video.muted = true;
 
-    video.oncanplay = () => {
-      isVideoReady = true;
-      console.log("video ready:", video.videoWidth, video.videoHeight);
-    };
+    await video.play();
 
-    await video.play(); // ★重要（iOS）
+    result.textContent = "カメラ起動完了";
   } catch (e) {
-    alert("カメラを起動できません");
+    alert("カメラ起動失敗");
     console.error(e);
   }
 };
 
-// 撮影
+// 撮影（iOS対応）
 captureBtn.onclick = async () => {
-  if (!isVideoReady) {
-    result.textContent = "カメラ準備中です。少し待ってください。";
-    return;
-  }
+  result.textContent = "撮影中…";
 
-  result.textContent = "認識中…";
+  // ★ iOS Safari 対策：1フレーム待つ
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      const w = video.videoWidth;
+      const h = video.videoHeight;
 
-  // ★ iOS対策：再生を保証
-  await video.play();
+      if (!w || !h) {
+        result.textContent = "映像サイズ取得失敗";
+        return;
+      }
 
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+      canvas.width = w;
+      canvas.height = h;
 
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, 0, 0, w, h);
 
-  const base64Image = canvas
-    .toDataURL("image/jpeg", 0.9)
-    .replace(/^data:image\/jpeg;base64,/, "");
+      // デバッグ用：canvasを一時表示
+      canvas.style.display = "block";
 
-  runOCR(base64Image);
+      const base64Image = canvas
+        .toDataURL("image/jpeg", 0.9)
+        .replace(/^data:image\/jpeg;base64,/, "");
+
+      runOCR(base64Image);
+    }, 300); // ★ 300ms待つ（超重要）
+  });
 };
 
 async function runOCR(base64Image) {
@@ -71,9 +76,7 @@ async function runOCR(base64Image) {
     const data = await res.json();
     console.log(data);
 
-    const text =
-      data?.ParsedResults?.[0]?.ParsedText?.trim();
-
+    const text = data?.ParsedResults?.[0]?.ParsedText?.trim();
     result.textContent = text || "文字を認識できませんでした";
   } catch (e) {
     result.textContent = "OCR通信エラー";
