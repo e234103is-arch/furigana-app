@@ -35,11 +35,6 @@ button:active {
   opacity: 0.7;
 }
 
-#status {
-  margin-top: 10px;
-  font-weight: bold;
-}
-
 #result {
   margin-top: 14px;
   padding: 12px;
@@ -49,9 +44,11 @@ button:active {
   white-space: pre-wrap;
 }
 
+/* 🔧 デバッグ時は block にする */
 canvas {
   display: none;
 }
+
 
 
 
