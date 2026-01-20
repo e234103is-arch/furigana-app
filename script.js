@@ -6,34 +6,35 @@ const output = document.getElementById("output");
 
 let stream = null;
 
-// カメラ起動（iPhone Safari 安定版）
 startBtn.addEventListener("click", async () => {
   output.textContent = "カメラ起動中…";
 
-  try {
-    // 既に掴んでいたら解放（Safari対策）
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      stream = null;
-    }
+  // 以前のストリームがあれば停止
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    stream = null;
+  }
 
+  try {
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
-        facingMode: "environment"
+        facingMode: "environment" // ← ideal をやめる
       },
       audio: false
     });
 
     video.srcObject = stream;
-    output.textContent = "カメラ起動完了";
+
+    // iPhone Safari 対策（超重要）
+    await video.play();
+
+    output.textContent = "カメラ起動完了（外カメラ）";
   } catch (err) {
     console.error(err);
-    output.textContent =
-      "カメラを起動できません: " + err.name;
+    output.textContent = "カメラを起動できません";
   }
 });
 
-// 撮影 → OCR
 captureBtn.addEventListener("click", async () => {
   if (!stream) {
     output.textContent = "先にカメラを起動してください";
@@ -50,7 +51,8 @@ captureBtn.addEventListener("click", async () => {
 
   canvas.width = w;
   canvas.height = h;
-  canvas.getContext("2d").drawImage(video, 0, 0, w, h);
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(video, 0, 0, w, h);
 
   const base64Image = canvas
     .toDataURL("image/jpeg", 0.9)
@@ -68,13 +70,14 @@ captureBtn.addEventListener("click", async () => {
       }
     );
 
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = await res.json();
 
-    if (data.responses?.[0]?.fullTextAnnotation) {
+    if (
+      data.responses &&
+      data.responses[0]?.fullTextAnnotation?.text
+    ) {
       output.textContent =
         data.responses[0].fullTextAnnotation.text;
     } else {
