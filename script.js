@@ -4,37 +4,56 @@ const startBtn = document.getElementById("start");
 const captureBtn = document.getElementById("capture");
 const output = document.getElementById("output");
 
-let stream;
+let stream = null;
 
-// ✅ ユーザー操作後に外側カメラ起動
+/**
+ * カメラ起動（iPhone Safari 外カメラ優先）
+ */
 startBtn.addEventListener("click", async () => {
+  output.textContent = "カメラ起動中…";
+
   try {
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
-        facingMode: { ideal: "environment" }
-      }
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      },
+      audio: false
     });
+
     video.srcObject = stream;
-  } catch (e) {
+    output.textContent = "カメラ起動完了";
+  } catch (err) {
+    console.error(err);
     output.textContent = "カメラを起動できません";
-    console.error(e);
   }
 });
 
+/**
+ * 撮影 → OCR
+ */
 captureBtn.addEventListener("click", async () => {
   if (!stream) {
     output.textContent = "先にカメラを起動してください";
     return;
   }
 
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  canvas
-    .getContext("2d")
-    .drawImage(video, 0, 0);
+  const w = video.videoWidth;
+  const h = video.videoHeight;
+
+  if (!w || !h) {
+    output.textContent = "映像が準備できていません";
+    return;
+  }
+
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(video, 0, 0, w, h);
 
   const base64Image = canvas
-    .toDataURL("image/jpeg")
+    .toDataURL("image/jpeg", 0.9)
     .replace(/^data:image\/jpeg;base64,/, "");
 
   output.textContent = "OCR中…";
@@ -44,21 +63,34 @@ captureBtn.addEventListener("click", async () => {
       "https://vision-proxy-ddd6.vercel.app/api/ocr",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: base64Image })
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          image: base64Image
+        })
       }
     );
 
-    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
 
-    if (data.responses?.[0]?.fullTextAnnotation) {
+    const data = await res.json();
+    console.log("Vision API response:", data);
+
+    if (
+      data.responses &&
+      data.responses[0] &&
+      data.responses[0].fullTextAnnotation
+    ) {
       output.textContent =
         data.responses[0].fullTextAnnotation.text;
     } else {
       output.textContent = "文字を認識できませんでした";
     }
-  } catch (e) {
+  } catch (err) {
+    console.error(err);
     output.textContent = "通信エラー";
-    console.error(e);
   }
 });
