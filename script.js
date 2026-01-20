@@ -1,100 +1,71 @@
-// ★ 自分のAPIキーを入れる
-const API_KEY = "ここにAPIキー";
-
 const video = document.getElementById("camera");
 const startBtn = document.getElementById("start");
 const captureBtn = document.getElementById("capture");
-const canvas = document.getElementById("canvas");
-const status = document.getElementById("status");
 const result = document.getElementById("result");
 
-const ctx = canvas.getContext("2d");
-let currentStream = null;
+const canvas = document.createElement("canvas");
 
-// カメラ起動（iOS Safari対策済）
+// カメラ起動（外カメラ）
 startBtn.onclick = async () => {
   try {
-    if (currentStream) {
-      currentStream.getTracks().forEach(t => t.stop());
-    }
-
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" } },
-      audio: false
+      video: { facingMode: "environment" }
     });
-
-    currentStream = stream;
     video.srcObject = stream;
-
-    // ★ 重要：iOSでは明示的に再生
-    await video.play();
-
-    status.textContent = "カメラ起動完了";
-
   } catch (e) {
     alert("カメラを起動できません");
-    console.error(e);
   }
 };
 
 // 撮影 → OCR
 captureBtn.onclick = async () => {
-  if (!currentStream) {
-    alert("先にカメラを起動してください");
-    return;
-  }
+  result.textContent = "認識中…";
 
-  // 再生状態チェック（iOS対策）
-  if (video.readyState < 2) {
-    alert("カメラ準備中です。少し待ってください");
-    return;
-  }
-
-  // 撮影
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  canvas.getContext("2d").drawImage(video, 0, 0);
 
-  status.textContent = "文字認識中…";
-  result.textContent = "";
+  const base64Image = canvas
+    .toDataURL("image/jpeg")
+    .replace(/^data:image\/jpeg;base64,/, "");
 
-  // Base64化
-  const base64 = canvas.toDataURL("image/jpeg").split(",")[1];
+  await runOCR(base64Image);
+};
+
+async function runOCR(base64Image) {
+  const apiKey =K86866935688957;
+
+  const formData = new FormData();
+  formData.append("base64Image", base64Image);
+  formData.append("language", "jpn");
+  formData.append("isOverlayRequired", "false");
 
   try {
-    const res = await fetch(
-      `https://vision.googleapis.com/v1/images:annotate?key=${API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          requests: [
-            {
-              image: { content: base64 },
-              features: [{ type: "TEXT_DETECTION" }],
-              imageContext: { languageHints: ["ja"] }
-            }
-          ]
-        })
-      }
-    );
+    const response = await fetch("https://api.ocr.space/parse/image", {
+      method: "POST",
+      headers: {
+        apikey: apiKey
+      },
+      body: formData
+    });
 
-    const data = await res.json();
-    const text = data.responses?.[0]?.fullTextAnnotation?.text;
+    const data = await response.json();
 
-    if (!text) {
-      status.textContent = "文字を認識できませんでした";
-      return;
+    if (
+      data.ParsedResults &&
+      data.ParsedResults.length > 0 &&
+      data.ParsedResults[0].ParsedText
+    ) {
+      result.textContent = data.ParsedResults[0].ParsedText;
+    } else {
+      result.textContent = "文字を認識できませんでした";
     }
-
-    status.textContent = "認識完了";
-    result.textContent = text;
-
   } catch (e) {
-    status.textContent = "OCR失敗";
+    result.textContent = "OCR通信エラー";
     console.error(e);
   }
-};
+}
+
 
 
 
