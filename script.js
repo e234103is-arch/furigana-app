@@ -1,59 +1,64 @@
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
-const button = document.getElementById("capture");
+const startBtn = document.getElementById("start");
+const captureBtn = document.getElementById("capture");
 const output = document.getElementById("output");
 
-// カメラ起動（外側カメラ）
-navigator.mediaDevices.getUserMedia({
-  video: {
-    facingMode: "environment"
+let stream;
+
+// ✅ ユーザー操作後に外側カメラ起動
+startBtn.addEventListener("click", async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: "environment" }
+      }
+    });
+    video.srcObject = stream;
+  } catch (e) {
+    output.textContent = "カメラを起動できません";
+    console.error(e);
   }
-})
-.then(stream => {
-  video.srcObject = stream;
-})
-.catch(err => {
-  console.error("カメラ起動失敗", err);
-  output.textContent = "カメラを起動できません";
 });
 
-button.addEventListener("click", async () => {
+captureBtn.addEventListener("click", async () => {
+  if (!stream) {
+    output.textContent = "先にカメラを起動してください";
+    return;
+  }
+
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(video, 0, 0);
+  canvas
+    .getContext("2d")
+    .drawImage(video, 0, 0);
 
   const base64Image = canvas
     .toDataURL("image/jpeg")
     .replace(/^data:image\/jpeg;base64,/, "");
 
+  output.textContent = "OCR中…";
+
   try {
     const res = await fetch(
-      "https://vision-proxy-ddd6.vercel.app/api/ocr",
+      "https://vision-proxy-xxxx.vercel.app/api/ocr",
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: base64Image })
       }
     );
 
     const data = await res.json();
 
-    if (
-      data.responses &&
-      data.responses[0] &&
-      data.responses[0].fullTextAnnotation
-    ) {
+    if (data.responses?.[0]?.fullTextAnnotation) {
       output.textContent =
         data.responses[0].fullTextAnnotation.text;
     } else {
       output.textContent = "文字を認識できませんでした";
     }
-
   } catch (e) {
-    console.error(e);
     output.textContent = "通信エラー";
+    console.error(e);
   }
 });
