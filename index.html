@@ -2,31 +2,19 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ふりがなOCR</title>
+  <title>OCR Camera</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <h1>ふりがなOCR</h1>
+  <h1>カメラ文字認識</h1>
 
-  <video
-    id="camera"
-    autoplay
-    playsinline
-    muted
-  ></video>
-
-  <div class="buttons">
-    <button id="start">カメラ起動</button>
-    <button id="capture">撮影して認識</button>
-  </div>
-
-  <p id="status"></p>
-
-  <pre id="result">ここに認識結果が表示されます</pre>
-
+  <video id="video" autoplay playsinline></video>
   <canvas id="canvas"></canvas>
+
+  <button id="capture">撮影して文字認識</button>
+
+  <pre id="output"></pre>
 
   <script src="script.js"></script>
 </body>
