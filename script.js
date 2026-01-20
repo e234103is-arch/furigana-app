@@ -1,54 +1,36 @@
-const video = document.getElementById("camera");
-const startBtn = document.getElementById("start");
-const captureBtn = document.getElementById("capture");
-const result = document.getElementById("result");
-const status = document.getElementById("status");
+// 要素取得
+const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
+const captureButton = document.getElementById("capture");
+const output = document.getElementById("output");
 
-// ① カメラ起動（外カメラ）
-startBtn.onclick = async () => {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { exact: "environment" } },
-      audio: false
-    });
+// カメラ起動
+navigator.mediaDevices.getUserMedia({ video: true })
+  .then(stream => {
     video.srcObject = stream;
-    status.textContent = "カメラ起動中";
-  } catch (e) {
-    status.textContent = "カメラを起動できません";
-    console.error(e);
-  }
-};
+    video.play();
+  })
+  .catch(err => {
+    console.error("カメラ起動失敗", err);
+  });
 
-// ② 撮影 → OCR
-captureBtn.onclick = async () => {
-  status.textContent = "認識中…";
-
-  // iPhone対策：metadata待ち
-  if (video.videoWidth === 0) {
-    await new Promise(resolve => {
-      video.onloadedmetadata = resolve;
-    });
-  }
-
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-  const base64Image = canvas
-    .toDataURL("image/jpeg", 0.9)
-    .replace(/^data:image\/jpeg;base64,/, "");
-
-  await runOCR(base64Image);
-};
-
-// ③ OCR（Vercel 経由で Google Vision API）
-async function runOCR(base64Image) {
+// 撮影 → OCR
+captureButton.addEventListener("click", async () => {
   try {
+    // canvas に描画
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0);
+
+    // base64 に変換（ヘッダ削除）
+    const base64Image = canvas
+      .toDataURL("image/jpeg")
+      .replace(/^data:image\/jpeg;base64,/, "");
+
+    // Vercel OCR API へ送信
     const response = await fetch(
-      "https://vision-proxy-tau.vercel.app/api/ocr",
+      "https://vision-proxy-xxxx.vercel.app/api/ocr",
       {
         method: "POST",
         headers: {
@@ -60,20 +42,27 @@ async function runOCR(base64Image) {
       }
     );
 
-    console.log("status:", response.status);
-
-    const data = await response.json();
-
-    if (data.text) {
-      result.textContent = data.text;
-      status.textContent = "認識完了";
-    } else {
-      result.textContent = "文字を認識できませんでした";
-      status.textContent = "失敗";
+    if (!response.ok) {
+      throw new Error(`HTTPエラー: ${response.status}`);
     }
-  } catch (e) {
-    result.textContent = "OCR通信エラー";
-    status.textContent = "エラー";
-    console.error(e);
+
+    const result = await response.json();
+    console.log(result);
+
+    // 結果表示
+    if (
+      result.responses &&
+      result.responses[0] &&
+      result.responses[0].fullTextAnnotation
+    ) {
+      output.textContent =
+        result.responses[0].fullTextAnnotation.text;
+    } else {
+      output.textContent = "文字を認識できませんでした";
+    }
+
+  } catch (error) {
+    console.error("OCRエラー", error);
+    output.textContent = "エラーが発生しました";
   }
-}
+});
