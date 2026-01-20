@@ -46,7 +46,9 @@ button:active {
 
 /* 🔧 デバッグ時は block にする */
 canvas {
-  display: none;
+  display: block;
+  width: 100%;
+  border: 2px solid red;
 }
 
 
