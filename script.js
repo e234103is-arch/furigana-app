@@ -21,6 +21,9 @@ startBtn.onclick = async () => {
 captureBtn.onclick = async () => {
   result.textContent = "認識中…";
 
+console.log(video.videoWidth, video.videoHeight);
+
+  
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   canvas.getContext("2d").drawImage(video, 0, 0);
