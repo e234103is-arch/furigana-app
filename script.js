@@ -2,84 +2,78 @@ const video = document.getElementById("camera");
 const startBtn = document.getElementById("start");
 const captureBtn = document.getElementById("capture");
 const result = document.getElementById("result");
+const status = document.getElementById("status");
 const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
 
-let stream = null;
-
-// カメラ起動
+// ① カメラ起動（外カメラ）
 startBtn.onclick = async () => {
   try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { exact: "environment" } },
+      audio: false
     });
-
     video.srcObject = stream;
-    video.setAttribute("playsinline", true);
-    video.muted = true;
-
-    await video.play();
-
-    result.textContent = "カメラ起動完了";
+    status.textContent = "カメラ起動中";
   } catch (e) {
-    alert("カメラ起動失敗");
+    status.textContent = "カメラを起動できません";
     console.error(e);
   }
 };
 
-// 撮影（iOS対応）
+// ② 撮影 → OCR
 captureBtn.onclick = async () => {
-  result.textContent = "撮影中…";
+  status.textContent = "認識中…";
 
-  // ★ iOS Safari 対策：1フレーム待つ
-  requestAnimationFrame(() => {
-    setTimeout(() => {
-      const w = video.videoWidth;
-      const h = video.videoHeight;
+  // iPhone対策：metadata待ち
+  if (video.videoWidth === 0) {
+    await new Promise(resolve => {
+      video.onloadedmetadata = resolve;
+    });
+  }
 
-      if (!w || !h) {
-        result.textContent = "映像サイズ取得失敗";
-        return;
-      }
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
 
-      canvas.width = w;
-      canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      ctx.drawImage(video, 0, 0, w, h);
+  const base64Image = canvas
+    .toDataURL("image/jpeg", 0.9)
+    .replace(/^data:image\/jpeg;base64,/, "");
 
-      // デバッグ用：canvasを一時表示
-      canvas.style.display = "block";
-
-      const base64Image = canvas
-        .toDataURL("image/jpeg", 0.9)
-        .replace(/^data:image\/jpeg;base64,/, "");
-
-      runOCR(base64Image);
-    }, 300); // ★ 300ms待つ（超重要）
-  });
+  await runOCR(base64Image);
 };
 
+// ③ OCR（Vercel 経由で Google Vision API）
 async function runOCR(base64Image) {
-  const apiKey = "K86866935688957";
-
-  const formData = new FormData();
-  formData.append("base64Image", base64Image);
-  formData.append("language", "jpn");
-
   try {
-    const res = await fetch("https://api.ocr.space/parse/image", {
-      method: "POST",
-      headers: { apikey: apiKey },
-      body: formData
-    });
+    const response = await fetch(
+      "https://vision-proxy-tau.vercel.app/api/ocr",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          image: base64Image
+        })
+      }
+    );
 
-    const data = await res.json();
-    console.log(data);
+    console.log("status:", response.status);
 
-    const text = data?.ParsedResults?.[0]?.ParsedText?.trim();
-    result.textContent = text || "文字を認識できませんでした";
+    const data = await response.json();
+
+    if (data.text) {
+      result.textContent = data.text;
+      status.textContent = "認識完了";
+    } else {
+      result.textContent = "文字を認識できませんでした";
+      status.textContent = "失敗";
+    }
   } catch (e) {
     result.textContent = "OCR通信エラー";
+    status.textContent = "エラー";
     console.error(e);
   }
 }
