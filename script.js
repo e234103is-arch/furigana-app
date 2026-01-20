@@ -13,30 +13,33 @@ navigator.mediaDevices.getUserMedia({ video: true })
   });
 
 button.addEventListener("click", async () => {
-  // video → canvas
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   const ctx = canvas.getContext("2d");
   ctx.drawImage(video, 0, 0);
 
-  // base64 変換（ヘッダ削除）
   const base64Image = canvas
     .toDataURL("image/jpeg")
     .replace(/^data:image\/jpeg;base64,/, "");
 
+  output.textContent = "OCR中…";
+
   try {
-    const res = await fetch("/api/ocr", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        image: base64Image
-      })
-    });
+    const res = await fetch(
+      "https://vision-proxy-ddd6.vercel.app/api/ocr", // ★ここを書き換える
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          image: base64Image
+        })
+      }
+    );
 
     const data = await res.json();
-    console.log(data);
+    console.log("OCR result:", data);
 
     if (
       data.responses &&
