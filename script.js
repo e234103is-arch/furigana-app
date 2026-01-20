@@ -33,7 +33,7 @@ captureBtn.onclick = async () => {
 };
 
 async function runOCR(base64Image) {
-  const apiKey =K86866935688957;
+  const apiKey ="K86866935688957";
 
   const formData = new FormData();
   formData.append("base64Image", base64Image);
