@@ -19,8 +19,8 @@ module.exports = async (req, res) => {
     if (!text) return res.status(400).json({ error: 'テキストが空です' });
     if (!apiKey) return res.status(400).json({ error: 'APIキーが届いていません' });
 
-    // Gemini APIへのリクエスト
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // ★★★ ここを変更しました！「gemini-pro」を使います ★★★
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
     
     const response = await fetch(geminiUrl, {
       method: 'POST',
@@ -34,9 +34,7 @@ module.exports = async (req, res) => {
 
     const data = await response.json();
 
-    // ★★★ エラーの原因を特定する部分 ★★★
-    
-    // パターンA: Googleが明確にエラーを返している場合
+    // エラーチェック
     if (data.error) {
       console.error("Google API Error:", JSON.stringify(data.error));
       return res.status(400).json({ 
@@ -44,9 +42,7 @@ module.exports = async (req, res) => {
       });
     }
 
-    // パターンB: 成功したが、回答の形式が予想と違う場合
     if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      console.error("Unexpected Response:", JSON.stringify(data));
       return res.status(500).json({ 
         error: `返答形式エラー: ${JSON.stringify(data)}` 
       });
