@@ -4,12 +4,14 @@ const startBtn = document.getElementById("start");
 const captureBtn = document.getElementById("capture");
 const output = document.getElementById("output");
 
-// ★ここにメールで届いたキーを入れてください
-const MY_OCR_API_KEY = 'K82889223688957'; 
+// ★★★ キー設定エリア ★★★
+const MY_OCR_API_KEY    = 'K82889223688957'; 
+const MY_GEMINI_API_KEY = 'AIzaSyDkr8OsQRR11dDgE4-wt1WAUBJ0K2CNPMg'; 
+// ★★★★★★★★★★★★★★★
 
 let stream = null;
 
-// カメラ起動
+// カメラ起動（変更なし）
 startBtn.addEventListener("click", async () => {
   output.textContent = "カメラを準備中…";
   if (stream) {
@@ -29,55 +31,50 @@ startBtn.addEventListener("click", async () => {
   }
 });
 
-// 撮影 & OCR.spaceで解析
+// 撮影 -> OCR -> Geminiでふりがな
 captureBtn.addEventListener("click", async () => {
-  if (!stream) {
-    alert("先にカメラを起動してください");
-    return;
-  }
-  if (MY_OCR_API_KEY === 'ここにメールで届いたAPIキーを入れる') {
-    alert("ソースコードのAPIキーを設定してください！");
+  if (!stream) { alert("カメラを起動してください"); return; }
+  
+  if (MY_OCR_API_KEY.includes('OCR.space') || MY_GEMINI_API_KEY.includes('AIza')) {
+    alert("キーが正しく設定されていません！");
     return;
   }
 
-  output.textContent = "撮影＆送信中...";
+  output.textContent = "① 文字を読み取っています...";
 
-  // 画像を生成
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   const ctx = canvas.getContext("2d");
   ctx.drawImage(video, 0, 0);
-
-  // Base64データを作成
   const base64Image = canvas.toDataURL("image/jpeg", 0.8);
 
-  output.textContent = "解析中... (数秒かかります)";
-
   try {
-    // Vercelの自分のサーバーへ送信
-    const response = await fetch('/api/ocr', {
+    // 1. OCR実行
+    const ocrRes = await fetch('/api/ocr', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        image: base64Image,
-        apiKey: MY_OCR_API_KEY
-      })
+      body: JSON.stringify({ image: base64Image, apiKey: MY_OCR_API_KEY })
     });
+    const ocrData = await ocrRes.json();
 
-    if (!response.ok) {
-      throw new Error(`Server Error: ${response.status}`);
+    if (!ocrData.ParsedResults || ocrData.ParsedResults.length === 0) {
+      throw new Error("文字が見つかりませんでした");
     }
+    
+    const kanjiText = ocrData.ParsedResults[0].ParsedText;
+    output.innerText = "【読み取り完了】\n" + kanjiText + "\n\n② AIがふりがなを考えています...";
 
-    const result = await response.json();
+    // 2. Geminiでふりがな変換
+    // ★ここが変わりました：送るデータが 'apiKey' になっています
+    const furiganaRes = await fetch('/api/furigana', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: kanjiText, apiKey: MY_GEMINI_API_KEY })
+    });
+    const furiganaData = await furiganaRes.json();
 
-    // 結果の取り出し
-    if (result.ParsedResults && result.ParsedResults.length > 0) {
-      const text = result.ParsedResults[0].ParsedText;
-      output.innerText = "【結果】\n" + text;
-    } else {
-      output.textContent = "文字が読み取れませんでした。";
-      console.log(result);
-    }
+    // 結果表示
+    output.innerText = "【原文】\n" + kanjiText + "\n\n【ふりがな (AI)】\n" + furiganaData.converted;
 
   } catch (err) {
     console.error(err);
