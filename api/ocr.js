@@ -1,40 +1,33 @@
-export const config = {
-  runtime: 'edge', // 高速なEdge Runtimeを使用
-};
+// Node.js 標準モード (Serverless Function)
 
-export default async function handler(req) {
-  // CORS設定（誰でもアクセス許可）
+module.exports = async (req, res) => {
+  // 1. CORS設定 (これをしないと拒否される)
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+
+  // 2. OPTIONSリクエスト（事前確認）への対応
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
-    });
+    res.status(200).end();
+    return;
   }
 
-  // POST以外は拒否
+  // 3. POST以外はエラー
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
-    const { image } = await req.json();
+    // データ受け取り
+    const { image } = req.body;
     const apiKey = process.env.GOOGLE_API_KEY;
 
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'Server config error: API Key missing' }), {
-        status: 500,
-        headers: { 
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*' 
-        }
-      });
+      return res.status(500).json({ error: 'Server config error: API Key missing' });
     }
 
     // Google Vision APIへ送信
@@ -56,23 +49,12 @@ export default async function handler(req) {
 
     const data = await googleRes.json();
     
-    // Googleからの結果をそのまま返す
-    return new Response(JSON.stringify(data), {
-      status: googleRes.status,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
+    // 結果を返す
+    return res.status(googleRes.status).json(data);
 
   } catch (error) {
     console.error("API Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*' 
-      }
-    });
+    return res.status(500).json({ error: error.message });
   }
-}
+};
+
