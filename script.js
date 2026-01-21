@@ -1,84 +1,104 @@
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
-const startBtn = document.getElementById("start");
-const captureBtn = document.getElementById("capture");
-const output = document.getElementById("output");
+// ▼▼▼ ここに OCR.space のキーを設定してください ▼▼▼
+const OCR_SPACE_API_KEY = 'K82889223688957';
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-// ★★★ キー設定エリア ★★★
-const MY_OCR_API_KEY='K82889223688957'; 
-const MY_GEMINI_API_KEY='AIzaSyCWceL63UqCoypvUgD_XE1UBA9Gg0Pqxfo'; 
-// ★★★★★★★★★★★★★★★
+document.addEventListener('DOMContentLoaded', () => {
+    const convertBtn = document.getElementById('convert-btn');
+    const cameraBtn = document.getElementById('camera-btn');
+    const fileInput = document.getElementById('file-input');
+    const inputText = document.getElementById('input-text');
+    const resultText = document.getElementById('result-text');
+    const loading = document.getElementById('loading');
+    const loadingText = document.querySelector('#loading p');
 
-let stream = null;
-
-// カメラ起動
-startBtn.addEventListener("click", async () => {
-  output.textContent = "カメラを準備中…";
-  if (stream) {
-    stream.getTracks().forEach(track => track.stop());
-  }
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment", width: 1280, height: 720 },
-      audio: false
+    // ■■■ 1. カメラボタンを押した時の動き ■■■
+    cameraBtn.addEventListener('click', () => {
+        fileInput.click();
     });
-    video.srcObject = stream;
-    video.onloadedmetadata = () => {
-      output.textContent = "カメラ準備OK！";
-    };
-  } catch (err) {
-    output.textContent = "カメラエラー: " + err.message;
-  }
-});
 
-// 撮影 -> OCR -> Gemini
-captureBtn.addEventListener("click", async () => {
-  if (!stream) { alert("カメラを起動してください"); return; }
-  
-  output.textContent = "① 文字を読み取っています...";
+    // ■■■ 2. 写真が選ばれたら OCR.space に送る動き ■■■
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(video, 0, 0);
-  const base64Image = canvas.toDataURL("image/jpeg", 0.8);
+        // ローディング表示
+        loadingText.innerText = "画像を読み取っています...";
+        loading.style.display = 'flex';
 
-  try {
-    // 1. OCRを実行
-    const ocrRes = await fetch('/api/ocr', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: base64Image, apiKey: MY_OCR_API_KEY })
+        try {
+            // OCR.space に送るためのデータを作成
+            const formData = new FormData();
+            formData.append('apikey', OCR_SPACE_API_KEY);
+            formData.append('language', 'jpn'); // ★重要：日本語設定
+            formData.append('isOverlayRequired', 'false');
+            formData.append('file', file); // 画像ファイルそのもの
+
+            // OCR.space API に送信
+            const response = await fetch('https://api.ocr.space/parse/image', {
+                method: 'POST',
+                body: formData
+                // ※FormDataを送る時は Content-Type ヘッダーを書いてはいけません
+            });
+
+            const data = await response.json();
+
+            // 結果のチェック
+            if (data.IsErroredOnProcessing) {
+                alert("読み取りエラー: " + data.ErrorMessage);
+            } else if (data.ParsedResults && data.ParsedResults.length > 0) {
+                const detectedText = data.ParsedResults[0].ParsedText;
+                inputText.value = detectedText; // 画面に入力
+            } else {
+                alert("文字が見つかりませんでした。");
+            }
+
+        } catch (error) {
+            console.error(error);
+            alert("通信エラーが発生しました。");
+        } finally {
+            loading.style.display = 'none';
+            fileInput.value = ''; // リセット
+        }
     });
-    const ocrData = await ocrRes.json();
 
-    if (!ocrData.ParsedResults || ocrData.ParsedResults.length === 0) {
-      throw new Error("文字が見つかりませんでした");
-    }
-    
-    const kanjiText = ocrData.ParsedResults[0].ParsedText;
-    output.innerText = "【読み取り完了】\n" + kanjiText + "\n\n② AIがふりがなを考えています...";
 
-    // 2. Geminiでふりがな変換
-    const furiganaRes = await fetch('/api/furigana', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: kanjiText, apiKey: MY_GEMINI_API_KEY })
+    // ■■■ 3. ふりがなボタンを押した時の動き（Yahooへ） ■■■
+    convertBtn.addEventListener('click', async () => {
+        const text = inputText.value;
+        
+        if (!text) {
+            alert("文字を入力してください！");
+            return;
+        }
+
+        inputText.blur();
+        loadingText.innerText = "ふりがなを付けています...";
+        loading.style.display = 'flex';
+        
+        try {
+            const response = await fetch('/api/furigana', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text })
+            });
+
+            const data = await response.json();
+
+            if (data.converted) {
+                resultText.classList.remove('placeholder');
+                resultText.style.color = '#1c1c1e';
+                resultText.innerText = data.converted;
+            } else {
+                resultText.style.color = 'red';
+                resultText.innerText = "エラー: " + (data.error || "変換できませんでした");
+            }
+
+        } catch (e) {
+            console.error(e);
+            resultText.style.color = 'red';
+            resultText.innerText = "通信エラーが発生しました";
+        } finally {
+            loading.style.display = 'none';
+        }
     });
-    const furiganaData = await furiganaRes.json();
-
-    // ▼▼▼ ここを変えました：エラーの中身を表示する ▼▼▼
-    if (furiganaData.error) {
-        output.innerText = "【エラー発生】\n" + furiganaData.error;
-    } else if (furiganaData.converted) {
-        output.innerText = "【原文】\n" + kanjiText + "\n\n【ふりがな (AI)】\n" + furiganaData.converted;
-    } else {
-        output.innerText = "【エラー】\nAIからの返答が空でした。\n(undefined)";
-    }
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-
-  } catch (err) {
-    console.error(err);
-    output.textContent = "通信エラー: " + err.message;
-  }
 });
