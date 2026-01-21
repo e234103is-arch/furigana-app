@@ -35,10 +35,7 @@ startBtn.addEventListener("click", async () => {
 captureBtn.addEventListener("click", async () => {
   if (!stream) { alert("カメラを起動してください"); return; }
   
-  if (MY_OCR_API_KEY.includes('OCR.space') || MY_GEMINI_API_KEY.includes('AIza')) {
-    alert("キーが正しく設定されていません！");
-    return;
-  }
+
 
   output.textContent = "① 文字を読み取っています...";
 
