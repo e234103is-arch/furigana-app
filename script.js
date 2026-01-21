@@ -4,105 +4,83 @@ const startBtn = document.getElementById("start");
 const captureBtn = document.getElementById("capture");
 const output = document.getElementById("output");
 
+// ★ここにメールで届いたキーを入れてください
+const MY_OCR_API_KEY = 'K82889223688957'; 
+
 let stream = null;
 
 // カメラ起動
 startBtn.addEventListener("click", async () => {
   output.textContent = "カメラを準備中…";
-  
   if (stream) {
     stream.getTracks().forEach(track => track.stop());
   }
-
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { 
-        facingMode: "environment", // 外カメラ
-        width: { ideal: 1920 },
-        height: { ideal: 1080 } 
-      },
+      video: { facingMode: "environment", width: 1280, height: 720 },
       audio: false
     });
-    
     video.srcObject = stream;
     video.onloadedmetadata = () => {
-      output.textContent = "カメラ準備OK！撮影ボタンを押してください";
+      output.textContent = "カメラ準備OK！";
     };
   } catch (err) {
-    console.error(err);
     output.textContent = "カメラエラー: " + err.message;
   }
 });
 
-// 画像を白黒・高コントラストにする関数（これで精度UP！）
-function preprocessImage(ctx, width, height) {
-  const imageData = ctx.getImageData(0, 0, width, height);
-  const data = imageData.data;
-  
-  // 閾値（しきいち）：これより明るければ白、暗ければ黒にする
-  const threshold = 100; 
-
-  for (let i = 0; i < data.length; i += 4) {
-    // RGBの平均をとってグレーにする
-    const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-    
-    // 白か黒かに振り分ける（二値化）
-    const color = avg > threshold ? 255 : 0;
-    
-    data[i] = color;     // R
-    data[i + 1] = color; // G
-    data[i + 2] = color; // B
-  }
-  
-  ctx.putImageData(imageData, 0, 0);
-}
-
-// 撮影 & 解析
+// 撮影 & OCR.spaceで解析
 captureBtn.addEventListener("click", async () => {
   if (!stream) {
-    output.textContent = "先に「カメラ起動」を押してください";
+    alert("先にカメラを起動してください");
+    return;
+  }
+  if (MY_OCR_API_KEY === 'ここにメールで届いたAPIキーを入れる') {
+    alert("ソースコードのAPIキーを設定してください！");
     return;
   }
 
-  output.textContent = "画像を処理中…";
+  output.textContent = "撮影＆送信中...";
 
-  const w = video.videoWidth;
-  const h = video.videoHeight;
-  canvas.width = w;
-  canvas.height = h;
+  // 画像を生成
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
   const ctx = canvas.getContext("2d");
-  
-  // 1. まず普通に描画
-  ctx.drawImage(video, 0, 0, w, h);
-  
-  // 2. 画像を「白黒ハッキリ」に加工する（ここがポイント！）
-  preprocessImage(ctx, w, h);
+  ctx.drawImage(video, 0, 0);
 
-  output.textContent = "読み取り中…";
+  // Base64データを作成
+  const base64Image = canvas.toDataURL("image/jpeg", 0.8);
+
+  output.textContent = "解析中... (数秒かかります)";
 
   try {
-    // 日本語辞書を使って解析
-    const result = await Tesseract.recognize(
-      canvas,
-      'jpn', 
-      {
-        logger: m => {
-          if (m.status === 'recognizing text') {
-            output.textContent = `解析中... ${Math.round(m.progress * 100)}%`;
-          }
-        }
-      }
-    );
+    // Vercelの自分のサーバーへ送信
+    const response = await fetch('/api/ocr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image: base64Image,
+        apiKey: MY_OCR_API_KEY
+      })
+    });
 
-    // 結果表示
-    if (result.data && result.data.text.trim().length > 0) {
-      output.innerText = "【結果】\n" + result.data.text;
+    if (!response.ok) {
+      throw new Error(`Server Error: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    // 結果の取り出し
+    if (result.ParsedResults && result.ParsedResults.length > 0) {
+      const text = result.ParsedResults[0].ParsedText;
+      output.innerText = "【結果】\n" + text;
     } else {
-      output.textContent = "文字が見つかりませんでした。もっと明るい場所で試してください。";
+      output.textContent = "文字が読み取れませんでした。";
+      console.log(result);
     }
 
   } catch (err) {
     console.error(err);
-    output.textContent = "解析エラー: " + err.message;
+    output.textContent = "エラー: " + err.message;
   }
 });
