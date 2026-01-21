@@ -6,7 +6,7 @@ const output = document.getElementById("output");
 
 // ★★★ キー設定エリア ★★★
 const MY_OCR_API_KEY='K82889223688957'; 
-const MY_GEMINI_API_KEY='AIzaSyCf49bN3J_MExiGDBcf1JlscUPC10pPqyY'; 
+const MY_GEMINI_API_KEY='AIzaSyCWceL63UqCoypvUgD_XE1UBA9Gg0Pqxfo'; 
 // ★★★★★★★★★★★★★★★
 
 let stream = null;
