@@ -11,33 +11,83 @@ document.addEventListener('DOMContentLoaded', () => {
     const loading = document.getElementById('loading');
     const loadingText = document.querySelector('#loading p');
 
+    // ■ 画像圧縮用の関数（ここが重要！）
+    const compressImage = async (file) => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                img.src = e.target.result;
+            };
+            reader.onerror = reject;
+
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                // サイズが大きすぎたら縮小する（長辺を1500px以下に）
+                const MAX_SIZE = 1500;
+                if (width > MAX_SIZE || height > MAX_SIZE) {
+                    if (width > height) {
+                        height *= MAX_SIZE / width;
+                        width = MAX_SIZE;
+                    } else {
+                        width *= MAX_SIZE / height;
+                        height = MAX_SIZE;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // JPEG形式で圧縮（画質0.7）
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        resolve(blob);
+                    } else {
+                        reject(new Error("圧縮に失敗しました"));
+                    }
+                }, 'image/jpeg', 0.7);
+            };
+
+            reader.readAsDataURL(file);
+        });
+    };
+
     // ■■■ 1. カメラボタンを押した時の動き ■■■
     cameraBtn.addEventListener('click', () => {
         fileInput.click();
     });
 
-    // ■■■ 2. 写真が選ばれたら OCR.space に送る動き ■■■
+    // ■■■ 2. 写真が選ばれたら圧縮して OCR.space に送る ■■■
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        // ローディング表示
-        loadingText.innerText = "画像を読み取っています...";
+        loadingText.innerText = "画像を処理しています...";
         loading.style.display = 'flex';
 
         try {
+            // ★ここで画像を圧縮します！
+            const compressedBlob = await compressImage(file);
+
+            loadingText.innerText = "文字を読み取っています...";
+
             // OCR.space に送るためのデータを作成
             const formData = new FormData();
             formData.append('apikey', OCR_SPACE_API_KEY);
-            formData.append('language', 'jpn'); // ★重要：日本語設定
+            formData.append('language', 'jpn');
             formData.append('isOverlayRequired', 'false');
-            formData.append('file', file); // 画像ファイルそのもの
+            formData.append('file', compressedBlob, "image.jpg"); // 圧縮した画像を送る
 
             // OCR.space API に送信
             const response = await fetch('https://api.ocr.space/parse/image', {
                 method: 'POST',
                 body: formData
-                // ※FormDataを送る時は Content-Type ヘッダーを書いてはいけません
             });
 
             const data = await response.json();
@@ -47,25 +97,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("読み取りエラー: " + data.ErrorMessage);
             } else if (data.ParsedResults && data.ParsedResults.length > 0) {
                 const detectedText = data.ParsedResults[0].ParsedText;
-                inputText.value = detectedText; // 画面に入力
+                inputText.value = detectedText;
             } else {
                 alert("文字が見つかりませんでした。");
             }
 
         } catch (error) {
             console.error(error);
-            alert("通信エラーが発生しました。");
+            alert("エラーが発生しました: " + error.message);
         } finally {
             loading.style.display = 'none';
-            fileInput.value = ''; // リセット
+            fileInput.value = '';
         }
     });
-
 
     // ■■■ 3. ふりがなボタンを押した時の動き（Yahooへ） ■■■
     convertBtn.addEventListener('click', async () => {
         const text = inputText.value;
-        
         if (!text) {
             alert("文字を入力してください！");
             return;
