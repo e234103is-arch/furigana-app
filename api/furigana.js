@@ -14,14 +14,17 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { text, apiKey } = req.body;
-
+    const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'テキストが空です' });
-    if (!apiKey) return res.status(400).json({ error: 'APIキーが届いていません' });
 
-    // ★★★ ここが重要！「gemini-pro」を指定します ★★★
-    // ※個人の新規アカウントでも、これなら100%動きます
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ★ここに、さっき取得した「新しいAPIキー」を直接貼り付けてください！
+    // クォート '' を消さないように注意してください。
+    const DIRECT_API_KEY = 'AIzaSyCWceL63UqCoypvUgD_XE1UBA9Gg0Pqxfo';
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    // 個人アカウントなら gemini-1.5-flash が一番速くて確実です
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${DIRECT_API_KEY}`;
     
     const response = await fetch(geminiUrl, {
       method: 'POST',
@@ -35,6 +38,7 @@ module.exports = async (req, res) => {
 
     const data = await response.json();
 
+    // エラー詳細表示
     if (data.error) {
       console.error("Google API Error:", JSON.stringify(data.error));
       return res.status(400).json({ 
