@@ -11,7 +11,7 @@ const MY_GEMINI_API_KEY = 'AIzaSyDkr8OsQRR11dDgE4-wt1WAUBJ0K2CNPMg';
 
 let stream = null;
 
-// カメラ起動（変更なし）
+// カメラ起動
 startBtn.addEventListener("click", async () => {
   output.textContent = "カメラを準備中…";
   if (stream) {
@@ -31,12 +31,10 @@ startBtn.addEventListener("click", async () => {
   }
 });
 
-// 撮影 -> OCR -> Geminiでふりがな
+// 撮影 -> OCR -> Gemini
 captureBtn.addEventListener("click", async () => {
   if (!stream) { alert("カメラを起動してください"); return; }
   
-
-
   output.textContent = "① 文字を読み取っています...";
 
   canvas.width = video.videoWidth;
@@ -46,7 +44,7 @@ captureBtn.addEventListener("click", async () => {
   const base64Image = canvas.toDataURL("image/jpeg", 0.8);
 
   try {
-    // 1. OCR実行
+    // 1. OCRを実行
     const ocrRes = await fetch('/api/ocr', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -62,7 +60,6 @@ captureBtn.addEventListener("click", async () => {
     output.innerText = "【読み取り完了】\n" + kanjiText + "\n\n② AIがふりがなを考えています...";
 
     // 2. Geminiでふりがな変換
-    // ★ここが変わりました：送るデータが 'apiKey' になっています
     const furiganaRes = await fetch('/api/furigana', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -70,11 +67,18 @@ captureBtn.addEventListener("click", async () => {
     });
     const furiganaData = await furiganaRes.json();
 
-    // 結果表示
-    output.innerText = "【原文】\n" + kanjiText + "\n\n【ふりがな (AI)】\n" + furiganaData.converted;
+    // ▼▼▼ ここを変えました：エラーの中身を表示する ▼▼▼
+    if (furiganaData.error) {
+        output.innerText = "【エラー発生】\n" + furiganaData.error;
+    } else if (furiganaData.converted) {
+        output.innerText = "【原文】\n" + kanjiText + "\n\n【ふりがな (AI)】\n" + furiganaData.converted;
+    } else {
+        output.innerText = "【エラー】\nAIからの返答が空でした。\n(undefined)";
+    }
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
   } catch (err) {
     console.error(err);
-    output.textContent = "エラー: " + err.message;
+    output.textContent = "通信エラー: " + err.message;
   }
 });
