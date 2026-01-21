@@ -1,5 +1,5 @@
 module.exports = async (req, res) => {
-  // CORS設定
+  // CORS設定（おまじない）
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -23,8 +23,10 @@ module.exports = async (req, res) => {
     const DIRECT_API_KEY = 'AIzaSyCWceL63UqCoypvUgD_XE1UBA9Gg0Pqxfo';
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-    // 個人アカウントなら gemini-1.5-flash が一番速くて確実です
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${DIRECT_API_KEY}`;
+    // ★変更点：「gemini-1.5-flash」ではなく、
+    // 「gemini-1.5-flash-001」という【正式なバージョン番号】を指定します。
+    // これなら「見つからない」という誤解が起きません。
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent?key=${DIRECT_API_KEY}`;
     
     const response = await fetch(geminiUrl, {
       method: 'POST',
