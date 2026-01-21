@@ -1,5 +1,5 @@
 module.exports = async (req, res) => {
-  // CORS設定（おまじない）
+  // CORS設定
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -13,64 +13,45 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const { text, apiKey } = req.body;
-  if (!text) return res.status(400).json({ error: 'テキストが空です' });
-  if (!apiKey) return res.status(400).json({ error: 'APIキーが届いていません' });
+  try {
+    const { text, apiKey } = req.body;
 
-  // 試すモデルのリスト（上から順に試します）
-  // 1. 最新の軽量版 (1.5 Flash)
-  // 2. 安定版 (1.0 Pro)
-  // 3. 旧安定版 (gemini-pro)
-  const candidateModels = [
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-latest",
-    "gemini-1.0-pro",
-    "gemini-pro"
-  ];
+    if (!text) return res.status(400).json({ error: 'テキストが空です' });
+    if (!apiKey) return res.status(400).json({ error: 'APIキーが届いていません' });
 
-  let lastError = null;
+    // ★ 現在最も安定している公式版 (v1 / gemini-1.5-flash)
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    
+    const response = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: `以下のテキストを、漢字をひらがなに開いて出力してください。余計な記号は書かないでください。\nテキスト: ${text}` }]
+        }]
+      })
+    });
 
-  // 順番に試していくループ
-  for (const modelName of candidateModels) {
-    try {
-      console.log(`Testing model: ${modelName}`); // ログ用
-      
-      // バージョンは v1beta が一番広く対応しています
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    const data = await response.json();
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: `以下のテキストを、漢字をひらがなに開いて出力してください。余計な記号や解説は不要です。ひらがなのみ返してください。\nテキスト: ${text}` }]
-          }]
-        })
+    // エラー詳細表示
+    if (data.error) {
+      console.error("Google API Error:", JSON.stringify(data.error));
+      return res.status(400).json({ 
+        error: `Googleエラー: ${data.error.message || JSON.stringify(data.error)}` 
       });
-
-      const data = await response.json();
-
-      // もしこのモデルでエラーが出たら、次のモデルへ
-      if (data.error) {
-        lastError = data.error;
-        console.log(`Model ${modelName} failed:`, data.error.message);
-        continue; 
-      }
-
-      // 成功したら、ここで終了して結果を返す！
-      if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-        const hiragana = data.candidates[0].content.parts[0].text.trim();
-        return res.status(200).json({ converted: hiragana, modelUsed: modelName });
-      }
-
-    } catch (err) {
-      lastError = err;
-      console.log(`Network error with ${modelName}`);
     }
-  }
 
-  // 全部失敗した場合
-  return res.status(400).json({ 
-    error: `すべてのモデルで失敗しました。最後のGoogleエラー: ${lastError ? (lastError.message || JSON.stringify(lastError)) : "不明"}` 
-  });
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      return res.status(500).json({ 
+        error: `返答形式エラー: ${JSON.stringify(data)}` 
+      });
+    }
+
+    const hiragana = data.candidates[0].content.parts[0].text.trim();
+    return res.status(200).json({ converted: hiragana });
+
+  } catch (error) {
+    return res.status(500).json({ error: `サーバー内部エラー: ${error.message}` });
+  }
 };
