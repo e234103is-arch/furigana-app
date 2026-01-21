@@ -5,8 +5,8 @@ const captureBtn = document.getElementById("capture");
 const output = document.getElementById("output");
 
 // ★★★ キー設定エリア ★★★
-const MY_OCR_API_KEY    = 'K82889223688957'; 
-const MY_GEMINI_API_KEY = 'AIzaSyDkr8OsQRR11dDgE4-wt1WAUBJ0K2CNPMg'; 
+const MY_OCR_API_KEY='K82889223688957'; 
+const MY_GEMINI_API_KEY='AIzaSyDkr8OsQRR11dDgE4-wt1WAUBJ0K2CNPMg'; 
 // ★★★★★★★★★★★★★★★
 
 let stream = null;
