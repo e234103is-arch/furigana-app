@@ -1,28 +1,36 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OCR Camera (Free)</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ふりがなカメラ</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <h1>文字認識アプリ (無料版)</h1>
+    <header>ふりがなメーカー ✨</header>
 
-  <div class="camera-container">
-    <video id="video" autoplay playsinline muted></video>
-    <canvas id="canvas" style="display:none;"></canvas>
-  </div>
+    <div class="container">
+        <div class="card">
+            <div class="card-title">原文（ここに文字を入れるか、カメラ入力）</div>
+            <textarea id="input-text" placeholder="文字を入力してください..."></textarea>
+        </div>
 
-  <div class="controls">
-    <button id="start">カメラ起動</button>
-    <button id="capture">撮影して解析</button>
-  </div>
+        <div class="card">
+            <div class="card-title">ふりがな変換結果</div>
+            <div id="result-text" class="placeholder">まだ変換されていません</div>
+        </div>
+    </div>
 
-  <div id="output">ここへ結果が表示されます</div>
+    <div class="action-bar">
+        <button id="convert-btn">ふりがなをつける</button>
+    </div>
 
-  <script src="script.js"></script>
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>変換中...</p>
+    </div>
+
+    <script src="script.js" defer></script>
 </body>
 </html>
