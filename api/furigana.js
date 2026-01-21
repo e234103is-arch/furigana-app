@@ -19,8 +19,9 @@ module.exports = async (req, res) => {
     if (!text) return res.status(400).json({ error: 'テキストが空です' });
     if (!apiKey) return res.status(400).json({ error: 'APIキーが届いていません' });
 
-    // ★ 現在最も安定している公式版 (v1 / gemini-1.5-flash)
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // ★★★ v1betaに戻し、モデルを gemini-1.5-flash にします ★★★
+    // ※これが一番、新規アカウントでの成功率が高い組み合わせです
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
     const response = await fetch(geminiUrl, {
       method: 'POST',
@@ -34,7 +35,6 @@ module.exports = async (req, res) => {
 
     const data = await response.json();
 
-    // エラー詳細表示
     if (data.error) {
       console.error("Google API Error:", JSON.stringify(data.error));
       return res.status(400).json({ 
