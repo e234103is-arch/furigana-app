@@ -12,8 +12,13 @@
 
     <div class="container">
         <div class="card">
-            <div class="card-title">原文（ここに文字を入れるか、カメラ入力）</div>
-            <textarea id="input-text" placeholder="文字を入力してください..."></textarea>
+            <div class="card-title">原文（カメラ入力 or 手動入力）</div>
+            
+            <div class="button-area">
+                <button id="camera-btn" class="camera-button">📷 カメラで文字を読み取る</button>
+                <input type="file" id="file-input" accept="image/*" capture="environment">
+            </div>
+            <textarea id="input-text" placeholder="ここに文字が入ります..."></textarea>
         </div>
 
         <div class="card">
@@ -28,7 +33,7 @@
 
     <div id="loading">
         <div class="spinner"></div>
-        <p>変換中...</p>
+        <p>処理中...</p>
     </div>
 
     <script src="script.js" defer></script>
