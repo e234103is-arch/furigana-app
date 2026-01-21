@@ -18,42 +18,50 @@ module.exports = async (req, res) => {
     if (!text) return res.status(400).json({ error: 'テキストが空です' });
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-    // ★ここに、さっき取得した「新しいAPIキー」を直接貼り付けてください！
-    // クォート '' を消さないように注意してください。
-    const DIRECT_API_KEY = 'AIzaSyCWceL63UqCoypvUgD_XE1UBA9Gg0Pqxfo';
+    // ★ここに、さっき取得した「YahooのClient ID」を貼り付けてください！
+    const YAHOO_CLIENT_ID = 'dmVyPTIwMjUwNyZpZD1sSmQ4Y0x4TGVXJmhhc2g9TlRZM056RXpPR1ppTWpRNE9USmtNQQ';
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-    // ★変更点：最新版のFlashを諦め、最も実績のある「gemini-1.0-pro」を使います。
-    // これで「Not Found（見つからない）」と言われる確率はほぼゼロです。
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${DIRECT_API_KEY}`;
-    
-    const response = await fetch(geminiUrl, {
+    // Yahoo! JAPAN ルビ振りAPI (Furigana Service V2)
+    const yahooUrl = 'https://jlp.yahooapis.jp/FuriganaService/V2/furigana';
+
+    const response = await fetch(yahooUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': `Yahoo AppID: ${YAHOO_CLIENT_ID}` // YahooはここにIDが必要
+      },
       body: JSON.stringify({
-        contents: [{
-          parts: [{ text: `以下のテキストを、漢字をひらがなに開いて出力してください。余計な記号は書かないでください。\nテキスト: ${text}` }]
-        }]
+        "id": "12345", // 適当なIDでOK
+        "jsonrpc": "2.0",
+        "method": "jlp.furiganaservice.furigana",
+        "params": {
+          "q": text,
+          "grade": 1 // 1年生向け（全部ひらがなにする設定）
+        }
       })
     });
 
     const data = await response.json();
 
-    // エラー詳細表示
+    // エラーチェック
     if (data.error) {
-      console.error("Google API Error:", JSON.stringify(data.error));
+      console.error("Yahoo API Error:", JSON.stringify(data.error));
       return res.status(400).json({ 
-        error: `Googleエラー: ${data.error.message || JSON.stringify(data.error)}` 
+        error: `Yahooエラー: ${data.error.message || JSON.stringify(data.error)}` 
       });
     }
 
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      return res.status(500).json({ 
-        error: `返答形式エラー: ${JSON.stringify(data)}` 
-      });
+    // Yahooの返答からひらがなを結合する
+    // data.result.word という配列に分解されて返ってくるので繋げます
+    if (!data.result || !data.result.word) {
+      return res.status(500).json({ error: 'Yahooからの返答が空でした' });
     }
 
-    const hiragana = data.candidates[0].content.parts[0].text.trim();
+    // surface(元の文字) と furigana(読み) が入っています。
+    // furiganaが無い場合（ひらがなや記号）は surface を使います。
+    const hiragana = data.result.word.map(w => w.furigana || w.surface).join('');
+
     return res.status(200).json({ converted: hiragana });
 
   } catch (error) {
