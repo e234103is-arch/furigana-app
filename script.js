@@ -17,7 +17,7 @@ startBtn.addEventListener("click", async () => {
   try {
     stream = await navigator.mediaDevices.getUserMedia({
       video: { 
-        facingMode: "environment", // 外カメラ優先
+        facingMode: "environment",
         width: { ideal: 1920 },
         height: { ideal: 1080 } 
       },
@@ -25,7 +25,6 @@ startBtn.addEventListener("click", async () => {
     });
     
     video.srcObject = stream;
-    
     video.onloadedmetadata = () => {
       output.textContent = "カメラ準備OK！撮影ボタンを押してください";
     };
@@ -36,7 +35,7 @@ startBtn.addEventListener("click", async () => {
   }
 });
 
-// 撮影 & OCR実行
+// 撮影 & Tesseract.jsで解析
 captureBtn.addEventListener("click", async () => {
   if (!stream) {
     output.textContent = "先に「カメラ起動」を押してください";
@@ -45,56 +44,44 @@ captureBtn.addEventListener("click", async () => {
 
   output.textContent = "画像を処理中…";
 
-  // --- 画像圧縮処理 (Vercel対策) ---
-  const MAX_SIZE = 1024; // 長辺を1024pxに制限
-  let w = video.videoWidth;
-  let h = video.videoHeight;
-  
-  // サイズ計算
-  if (w > h) {
-    if (w > MAX_SIZE) { h *= MAX_SIZE / w; w = MAX_SIZE; }
-  } else {
-    if (h > MAX_SIZE) { w *= MAX_SIZE / h; h = MAX_SIZE; }
-  }
-
+  // 画像をキャンバスに描画
+  const w = video.videoWidth;
+  const h = video.videoHeight;
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext("2d");
   ctx.drawImage(video, 0, 0, w, h);
 
-  // Base64化 (JPEG品質 0.7)
-  const base64Data = canvas.toDataURL("image/jpeg", 0.7);
-  const purelyBase64 = base64Data.split(",")[1]; // "data:image..." を削除
-
-  output.textContent = "AIに送信中…";
+  output.textContent = "読み取り中… (初回は辞書DLに時間がかかります)";
 
   try {
-    // 同じドメインのAPIを叩く
-    const res = await fetch("/api/ocr", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: purelyBase64 })
-    });
+    // Tesseract.js を実行 (日本語: 'jpn')
+    const result = await Tesseract.recognize(
+      canvas,
+      'jpn', 
+      {
+        logger: m => {
+          // 進捗状況を表示
+          if (m.status === 'recognizing text') {
+            output.textContent = `解析中... ${Math.round(m.progress * 100)}%`;
+          } else {
+            output.textContent = `準備中... (${m.status})`;
+          }
+        }
+      }
+    );
 
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`エラー(${res.status}): ${errText}`);
-    }
-
-    const data = await res.json();
-    console.log("結果:", data);
+    console.log(result);
 
     // 結果表示
-    if (data.responses && data.responses[0]?.fullTextAnnotation) {
-      output.textContent = data.responses[0].fullTextAnnotation.text;
-    } else if (data.error) {
-      output.textContent = "APIエラー: " + JSON.stringify(data.error);
+    if (result.data && result.data.text.trim().length > 0) {
+      output.textContent = result.data.text;
     } else {
       output.textContent = "文字が見つかりませんでした";
     }
 
   } catch (err) {
     console.error(err);
-    output.textContent = "通信失敗: " + err.message;
+    output.textContent = "解析失敗: " + err.message;
   }
 });
