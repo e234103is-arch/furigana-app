@@ -2,28 +2,25 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OCR Camera</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <h1>文字認識</h1>
+  <h1>文字認識アプリ</h1>
 
-  <video
-  id="video"
-  autoplay
-  playsinline
-  muted
-  style="width:100%; max-width:400px;"
-></video>
+  <div class="camera-container">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+  </div>
 
-<canvas id="canvas" style="display:none;"></canvas>
+  <div class="controls">
+    <button id="start">カメラ起動</button>
+    <button id="capture">撮影して解析</button>
+  </div>
 
-<button id="start">カメラ起動</button>
-<button id="capture">撮影</button>
-
-<div id="output"></div>
-
+  <div id="output">ここへ結果が表示されます</div>
 
   <script src="script.js"></script>
 </body>
